@@ -5,8 +5,8 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     require: true,
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+  },
 });
 
 async function query(text, params) {
@@ -22,7 +22,4 @@ async function query(text, params) {
   }
 }
 
-module.exports = {
-  pool,
-  query,
-};
+module.exports = { pool, query };

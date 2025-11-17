@@ -1,16 +1,18 @@
 const express = require("express");
 const router = express.Router();
+require("dotenv").config();
 
-// Fake admin login – simple & matches payment middleware
 router.post("/login", (req, res) => {
   const { email, password } = req.body;
 
-  // Change this to your preferred login check
-  if (email === "admin@admin.com" && password === "admin123") {
+  if (
+    email === process.env.ADMIN_EMAIL &&
+    password === process.env.ADMIN_PASSWORD
+  ) {
     return res.json({ token: "admin-token" });
   }
 
-  return res.status(401).json({ message: "Invalid credentials" });
+  res.status(401).json({ message: "Invalid credentials" });
 });
 
 module.exports = router;

@@ -1,5 +1,3 @@
-// server/routes/payments.js
-
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
@@ -42,6 +40,10 @@ router.get("/", async (req, res) => {
         "billingAddress",
         "paymentDate","nextPaymentDate",
         "status","notified",
+        "emailSendCredits",
+        "emailVerificationCredits",
+        "smsCredits",
+        "whatsappCredits",
         "createdAt","updatedAt"
       FROM "Payment"
       ORDER BY "id" DESC;
@@ -56,7 +58,7 @@ router.get("/", async (req, res) => {
 });
 
 // =========================
-// UPDATE PAYMENT (ONLY EXISTING COLUMNS)
+// UPDATE PAYMENT
 // =========================
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
@@ -65,26 +67,30 @@ router.put("/:id", async (req, res) => {
   try {
     const sql = `
       UPDATE "Payment" SET
-        "name" = $1,
-        "email" = $2,
-        "transactionId" = $3,
-        "customInvoiceId" = $4,
-        "planName" = $5,
-        "planType" = $6,
-        "provider" = $7,
-        "amount" = $8,
-        "currency" = $9,
-        "planPrice" = $10,
-        "discount" = $11,
-        "paymentMethod" = $12,
-        "cardLast4" = $13,
-        "billingAddress" = $14,
-        "paymentDate" = $15,
-        "nextPaymentDate" = $16,
-        "status" = $17,
-        "notified" = $18,
-        "updatedAt" = NOW()
-      WHERE "id" = $19
+        "name"                      = $1,
+        "email"                     = $2,
+        "transactionId"             = $3,
+        "customInvoiceId"           = $4,
+        "planName"                  = $5,
+        "planType"                  = $6,
+        "provider"                  = $7,
+        "amount"                    = $8,
+        "currency"                  = $9,
+        "planPrice"                 = $10,
+        "discount"                  = $11,
+        "paymentMethod"             = $12,
+        "cardLast4"                 = $13,
+        "billingAddress"            = $14,
+        "paymentDate"               = $15,
+        "nextPaymentDate"           = $16,
+        "status"                    = $17,
+        "notified"                  = $18,
+        "emailSendCredits"          = $19,
+        "emailVerificationCredits"  = $20,
+        "smsCredits"                = $21,
+        "whatsappCredits"           = $22,
+        "updatedAt"                 = NOW()
+      WHERE "id" = $23
       RETURNING *;
     `;
 
@@ -107,7 +113,11 @@ router.put("/:id", async (req, res) => {
       data.nextPaymentDate,
       data.status,
       data.notified,
-      id,
+      data.emailSendCredits,
+      data.emailVerificationCredits,
+      data.smsCredits,
+      data.whatsappCredits,
+      id
     ];
 
     const result = await db.query(sql, values);
@@ -148,6 +158,5 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: "Database Error" });
   }
 });
-
 
 module.exports = router;
