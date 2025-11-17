@@ -1,10 +1,19 @@
+// server/routes/payments.js
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-// Middleware: check token
+// Middleware: check token (tolerant of "Bearer <token>" or just "<token>")
 router.use((req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: "Unauthorized - missing Authorization header" });
+  }
+
+  const parts = authHeader.split(" ");
+  // If header is "Bearer <token>" parts.length === 2, else could be just the token
+  const token = parts.length === 2 ? parts[1] : parts[0];
+
   if (token !== "admin-token") {
     return res.status(401).json({ message: "Unauthorized" });
   }
@@ -16,48 +25,30 @@ router.get("/", async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT
-        "id",
-        "userId",
-        "email",
-        "name",
-        "emailVerificationCredits",
-        "emailSendCredits",
-        "smsCredits",
-        "whatsappCredits",
-        "transactionId",
-        "customInvoiceId",
-        "planName",
-        "planType",
-        "provider",
-        "amount",
-        "currency",
-        "planPrice",
-        "discount",
-        "paymentMethod",
-        "cardLast4",
-        "billingAddress",
-        "paymentDate",
-        "nextPaymentDate",
-        "status",
-        "notified",
-        "createdAt",
-        "updatedAt"
+        "id","userId","email","name","emailVerificationCredits","emailSendCredits",
+        "smsCredits","whatsappCredits","transactionId","customInvoiceId","planName",
+        "planType","provider","amount","currency","planPrice","discount","paymentMethod",
+        "cardLast4","billingAddress","paymentDate","nextPaymentDate","status","notified",
+        "createdAt","updatedAt"
       FROM "Payment"
       ORDER BY "id" DESC`
     );
 
     res.json(rows);
   } catch (err) {
-    console.error(err);
+    console.error('GET /payments error:', {
+      message: err?.message,
+      code: err?.code,
+      stack: err?.stack?.split("\n")?.slice(0, 3)?.join("\n")
+    });
     res.status(500).json({ message: "DB Error" });
   }
 });
 
-
 // FULL UPDATE — supports all fields from frontend
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
-  const data = req.body;
+  const data = req.body || {};
 
   try {
     const values = [
@@ -116,22 +107,58 @@ router.put("/:id", async (req, res) => {
       values
     );
 
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
     res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error(`PUT /payments/${id} error:`, {
+      message: err?.message,
+      code: err?.code,
+      stack: err?.stack?.split("\n")?.slice(0, 3)?.join("\n")
+    });
     res.status(500).json({ message: "DB Error" });
   }
 });
 
-
 // DELETE payment
 router.delete("/:id", async (req, res) => {
+  const { id } = req.params;
   try {
-    await db.query(`DELETE FROM "Payment" WHERE id=$1`, [req.params.id]);
-    res.json({ success: true });
+    const { rows } = await db.query(
+      `DELETE FROM "Payment" WHERE "id" = $1 RETURNING "id"`,
+      [id]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Payment not found" });
+    }
+
+    res.json({ success: true, deletedId: rows[0].id });
   } catch (err) {
-    console.error(err);
+    console.error(`DELETE /payments/${id} error:`, {
+      message: err?.message,
+      code: err?.code,
+      stack: err?.stack?.split("\n")?.slice(0, 3)?.join("\n")
+    });
     res.status(500).json({ message: "DB Error" });
+  }
+});
+
+// Lightweight DB health check
+router.get("/test-db", async (req, res) => {
+  try {
+    const result = await db.query("SELECT NOW()");
+    const time = result?.rows?.[0]?.now ? result.rows[0].now : result.rows[0];
+    res.json({ connected: true, time });
+  } catch (err) {
+    console.error('GET /payments/test-db error:', {
+      message: err?.message,
+      code: err?.code,
+      stack: err?.stack?.split("\n")?.slice(0, 3)?.join("\n")
+    });
+    res.status(500).json({ connected: false, error: err?.message || err });
   }
 });
 
