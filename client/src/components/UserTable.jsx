@@ -1,6 +1,6 @@
 // File: client/src/components/UserTable.jsx
 import React from "react";
-import { FiPlus, FiUser, FiMail, FiCalendar, FiMessageSquare, FiMessageCircle, FiSearch } from "react-icons/fi";
+import { FiPlus, FiUser, FiMail, FiCalendar, FiMessageSquare, FiMessageCircle, FiUsers, FiSearch } from "react-icons/fi";
 
 export default function UserTable({ users, onAddPayment, searchTerm }) {
     // Filter users based on search term
@@ -102,27 +102,41 @@ export default function UserTable({ users, onAddPayment, searchTerm }) {
 
                                         {/* Credits Section */}
                                         <div className="sm:w-2/5 mb-3 sm:mb-0">
-                                            <div className="flex space-x-3">
-                                                <div className="flex-1 bg-blue-50 rounded-lg p-2 text-center transition-transform group-hover:scale-105">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                                                {/* Email Card */}
+                                                <div className="bg-blue-50 rounded-lg p-2 text-center transition-transform group-hover:scale-105">
                                                     <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-1">
                                                         <FiMail className="text-blue-600 text-xs" />
                                                     </div>
                                                     <span className="text-sm font-bold text-gray-800">{user.emailLimit}</span>
                                                     <div className="text-xs text-gray-500">Email</div>
                                                 </div>
-                                                <div className="flex-1 bg-green-50 rounded-lg p-2 text-center transition-transform group-hover:scale-105">
+
+                                                {/* SMS Card */}
+                                                <div className="bg-green-50 rounded-lg p-2 text-center transition-transform group-hover:scale-105">
                                                     <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-1">
                                                         <FiMessageSquare className="text-green-600 text-xs" />
                                                     </div>
                                                     <span className="text-sm font-bold text-gray-800">{user.smsCredits}</span>
                                                     <div className="text-xs text-gray-500">SMS</div>
                                                 </div>
-                                                <div className="flex-1 bg-purple-50 rounded-lg p-2 text-center transition-transform group-hover:scale-105">
+
+                                                {/* WhatsApp Card */}
+                                                <div className="bg-purple-50 rounded-lg p-2 text-center transition-transform group-hover:scale-105">
                                                     <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-1">
                                                         <FiMessageCircle className="text-purple-600 text-xs" />
                                                     </div>
                                                     <span className="text-sm font-bold text-gray-800">{user.whatsappCredits}</span>
                                                     <div className="text-xs text-gray-500">WhatsApp</div>
+                                                </div>
+
+                                                {/* Contact Limit Card */}
+                                                <div className="bg-amber-50 rounded-lg p-2 text-center transition-transform group-hover:scale-105">
+                                                    <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-1">
+                                                        <FiUsers className="text-amber-600 text-xs" />
+                                                    </div>
+                                                    <span className="text-sm font-bold text-gray-800">{user.contactLimit}</span>
+                                                    <div className="text-xs text-gray-500">Contacts</div>
                                                 </div>
                                             </div>
                                         </div>

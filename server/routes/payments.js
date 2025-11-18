@@ -62,71 +62,88 @@ router.get("/", async (req, res) => {
 // =========================
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
-  const data = req.body || {};
+  const data = req.body;
 
   try {
+    // 1. Get old payment
+    const old = await db.query(
+      `SELECT "userId", "emailSendCredits", "emailVerificationCredits",
+              "smsCredits", "whatsappCredits"
+       FROM "Payment" WHERE "id" = $1`,
+      [id]
+    );
+
+    if (old.rows.length === 0) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    const oldPayment = old.rows[0];
+
+    // 2. Update current payment
     const sql = `
       UPDATE "Payment" SET
-        "name"                      = $1,
-        "email"                     = $2,
-        "transactionId"             = $3,
-        "customInvoiceId"           = $4,
-        "planName"                  = $5,
-        "planType"                  = $6,
-        "provider"                  = $7,
-        "amount"                    = $8,
-        "currency"                  = $9,
-        "planPrice"                 = $10,
-        "discount"                  = $11,
-        "paymentMethod"             = $12,
-        "cardLast4"                 = $13,
-        "billingAddress"            = $14,
-        "paymentDate"               = $15,
-        "nextPaymentDate"           = $16,
-        "status"                    = $17,
-        "notified"                  = $18,
-        "emailSendCredits"          = $19,
-        "emailVerificationCredits"  = $20,
-        "smsCredits"                = $21,
-        "whatsappCredits"           = $22,
-        "updatedAt"                 = NOW()
+        "name" = $1, "email" = $2, "transactionId" = $3,
+        "customInvoiceId" = $4, "planName" = $5, "planType" = $6,
+        "provider" = $7, "amount" = $8, "currency" = $9, "planPrice" = $10,
+        "discount" = $11, "paymentMethod" = $12, "cardLast4" = $13,
+        "billingAddress" = $14, "paymentDate" = $15,
+        "nextPaymentDate" = $16, "status" = $17, "notified" = $18,
+        "emailSendCredits" = $19, "emailVerificationCredits" = $20,
+        "smsCredits" = $21, "whatsappCredits" = $22,
+        "updatedAt" = NOW()
       WHERE "id" = $23
       RETURNING *;
     `;
 
-    const values = [
-      data.name,
-      data.email,
-      data.transactionId,
-      data.customInvoiceId,
-      data.planName,
-      data.planType,
-      data.provider,
-      data.amount,
-      data.currency,
-      data.planPrice,
-      data.discount,
-      data.paymentMethod,
-      data.cardLast4,
-      data.billingAddress,
-      data.paymentDate,
-      data.nextPaymentDate,
-      data.status,
-      data.notified,
-      data.emailSendCredits,
-      data.emailVerificationCredits,
-      data.smsCredits,
-      data.whatsappCredits,
-      id
+    const newValues = [
+      data.name, data.email, data.transactionId, data.customInvoiceId,
+      data.planName, data.planType, data.provider, data.amount,
+      data.currency, data.planPrice, data.discount, data.paymentMethod,
+      data.cardLast4, data.billingAddress, data.paymentDate,
+      data.nextPaymentDate, data.status, data.notified,
+      data.emailSendCredits, data.emailVerificationCredits,
+      data.smsCredits, data.whatsappCredits, id
     ];
 
-    const result = await db.query(sql, values);
+    const result = await db.query(sql, newValues);
+    const newPayment = result.rows[0];
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Payment not found" });
-    }
+    // 3. Recalculate user credits (subtract old + add new)
+    await db.query(
+      `UPDATE "User" SET
+          "contactLimit"    = COALESCE("contactLimit", 0) 
+                              - $1 + $2,
+          "emailLimit"      = COALESCE("emailLimit", 0) 
+                              - $3 + $4,
+          "smsCredits"      = COALESCE("smsCredits", 0)
+                              - $5 + $6,
+          "whatsappCredits" = COALESCE("whatsappCredits", 0)
+                              - $7 + $8,
+          "updatedAt"       = NOW()
+        WHERE "id" = $9`,
+      [
+        oldPayment.emailVerificationCredits || 0,
+        newPayment.emailVerificationCredits || 0,
 
-    res.json(result.rows[0]);
+        oldPayment.emailSendCredits || 0,
+        newPayment.emailSendCredits || 0,
+
+        oldPayment.smsCredits || 0,
+        newPayment.smsCredits || 0,
+
+        oldPayment.whatsappCredits || 0,
+        newPayment.whatsappCredits || 0,
+
+        newPayment.userId
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: "Payment updated successfully",
+      data: newPayment
+    });
+
   } catch (err) {
     console.error(`PUT /api/payments/${id} error:`, err);
     res.status(500).json({ message: "Database Error" });
@@ -138,23 +155,52 @@ router.put("/:id", async (req, res) => {
 // =========================
 router.delete("/:id", async (req, res) => {
   try {
-    const sql = `
-      DELETE FROM "Payment"
-      WHERE "id" = $1
-      RETURNING "id";
-    `;
+    // 1. Fetch old payment before deleting
+    const old = await db.query(
+      `SELECT "userId", "emailSendCredits", "emailVerificationCredits",
+              "smsCredits", "whatsappCredits"
+       FROM "Payment"
+       WHERE "id" = $1`,
+      [req.params.id]
+    );
 
-    const result = await db.query(sql, [req.params.id]);
-
-    if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Payment not found" });
+    if (old.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Payment not found" });
     }
 
-    res.json({ success: true, deletedId: result.rows[0].id });
+    const p = old.rows[0];
+
+    // 2. Reverse user credits
+    await db.query(
+      `UPDATE "User" SET
+          "contactLimit"    = COALESCE("contactLimit", 0) - $1,
+          "emailLimit"      = COALESCE("emailLimit", 0) - $2,
+          "smsCredits"      = COALESCE("smsCredits", 0) - $3,
+          "whatsappCredits" = COALESCE("whatsappCredits", 0) - $4,
+          "updatedAt"       = NOW()
+        WHERE "id" = $5`,
+      [
+        p.emailVerificationCredits || 0,
+        p.emailSendCredits || 0,
+        p.smsCredits || 0,
+        p.whatsappCredits || 0,
+        p.userId
+      ]
+    );
+
+    // 3. Delete payment
+    await db.query(
+      `DELETE FROM "Payment" WHERE "id" = $1`,
+      [req.params.id]
+    );
+
+    res.json({
+      success: true,
+      message: "Payment deleted successfully"
+    });
+
   } catch (err) {
-    console.error(`DELETE /api/payments/${req.params.id} error:`, err);
+    console.error("DELETE /api/payments error:", err);
     res.status(500).json({ message: "Database Error" });
   }
 });
@@ -192,40 +238,46 @@ router.post("/", async (req, res) => {
     `;
 
     const values = [
-      data.userId,
-      data.email,
-      data.name,
-      data.transactionId,
-      data.customInvoiceId,
-      data.planName,
-      data.planType,
-      data.provider,
-      data.amount,
-      data.currency,
-      data.planPrice,
-      data.discount,
-      data.paymentMethod,
-      data.cardLast4,
-      data.billingAddress,
-      data.paymentDate,
-      data.nextPaymentDate,
-      data.status,
-      data.notified,
-      data.emailSendCredits,
-      data.emailVerificationCredits,
-      data.smsCredits,
-      data.whatsappCredits
+      data.userId, data.email, data.name, data.transactionId,
+      data.customInvoiceId, data.planName, data.planType,
+      data.provider, data.amount, data.currency, data.planPrice,
+      data.discount, data.paymentMethod, data.cardLast4,
+      data.billingAddress, data.paymentDate, data.nextPaymentDate,
+      data.status, data.notified, data.emailSendCredits,
+      data.emailVerificationCredits, data.smsCredits, data.whatsappCredits
     ];
 
     const result = await db.query(sql, values);
+    const payment = result.rows[0];
 
-    res.json(result.rows[0]);
+    // Update user credits
+    await db.query(
+      `UPDATE "User" SET
+          "contactLimit"    = COALESCE("contactLimit", 0) + $1,
+          "emailLimit"      = COALESCE("emailLimit", 0) + $2,
+          "smsCredits"      = COALESCE("smsCredits", 0) + $3,
+          "whatsappCredits" = COALESCE("whatsappCredits", 0) + $4,
+          "updatedAt"       = NOW()
+        WHERE "id" = $5`,
+      [
+        payment.emailVerificationCredits || 0,
+        payment.emailSendCredits || 0,
+        payment.smsCredits || 0,
+        payment.whatsappCredits || 0,
+        payment.userId
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: "Payment created successfully",
+      data: payment
+    });
 
   } catch (err) {
     console.error("POST /api/payments error:", err);
     res.status(500).json({ message: "Database Error" });
   }
 });
-
 
 module.exports = router;

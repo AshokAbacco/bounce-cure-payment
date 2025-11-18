@@ -10,9 +10,23 @@ export default function EditPaymentModal({ data, close }) {
   }
 
   async function save() {
-    await API.put(`/api/payments/${data.id}`, form);
-    close();
+    try {
+      const res = await API.put(`/api/payments/${data.id}`, form);
+
+      if (res.data.success) {
+        alert("Payment updated successfully!");
+      } else {
+        alert("Payment was updated but no confirmation was returned.");
+      }
+
+      close(true); // pass true so parent knows to refresh
+
+    } catch (err) {
+      console.error(err);
+      alert("Error updating payment!");
+    }
   }
+
 
   // Group form fields into logical sections
   const userFields = ['userId', 'email', 'name'];
