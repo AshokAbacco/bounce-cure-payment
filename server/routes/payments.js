@@ -159,4 +159,73 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// =========================
+// ADD NEW PAYMENT
+// =========================
+router.post("/", async (req, res) => {
+  const data = req.body;
+
+  try {
+    const sql = `
+      INSERT INTO "Payment" (
+        "userId","email","name","transactionId","customInvoiceId",
+        "planName","planType","provider",
+        "amount","currency","planPrice","discount",
+        "paymentMethod","cardLast4","billingAddress",
+        "paymentDate","nextPaymentDate",
+        "status","notified",
+        "emailSendCredits","emailVerificationCredits",
+        "smsCredits","whatsappCredits",
+        "createdAt","updatedAt"
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,
+        $6,$7,$8,
+        $9,$10,$11,$12,
+        $13,$14,$15,
+        $16,$17,
+        $18,$19,
+        $20,$21,$22,$23,
+        NOW(),NOW()
+      )
+      RETURNING *;
+    `;
+
+    const values = [
+      data.userId,
+      data.email,
+      data.name,
+      data.transactionId,
+      data.customInvoiceId,
+      data.planName,
+      data.planType,
+      data.provider,
+      data.amount,
+      data.currency,
+      data.planPrice,
+      data.discount,
+      data.paymentMethod,
+      data.cardLast4,
+      data.billingAddress,
+      data.paymentDate,
+      data.nextPaymentDate,
+      data.status,
+      data.notified,
+      data.emailSendCredits,
+      data.emailVerificationCredits,
+      data.smsCredits,
+      data.whatsappCredits
+    ];
+
+    const result = await db.query(sql, values);
+
+    res.json(result.rows[0]);
+
+  } catch (err) {
+    console.error("POST /api/payments error:", err);
+    res.status(500).json({ message: "Database Error" });
+  }
+});
+
+
 module.exports = router;
