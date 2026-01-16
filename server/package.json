@@ -16,7 +16,8 @@
     "express": "^5.1.0",
     "it": "^1.1.1",
     "nodemon": "^3.1.11",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "rollup": "^4.53.2"

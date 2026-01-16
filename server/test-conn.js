@@ -18,7 +18,7 @@ const cfg = {
     password,
     database: (parsed.pathname || '').replace(/^\//, ''),
     max: 2,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 5001,
     idleTimeoutMillis: 20000,
     ssl: {
         rejectUnauthorized: false,

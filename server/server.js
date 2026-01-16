@@ -5,6 +5,7 @@ require("dotenv").config();
 const authRoutes = require("./routes/auth");
 const paymentRoutes = require("./routes/payments");
 const userRoutes = require("./routes/users");
+const adminChatRoutes = require("./routes/adminChat");
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
+      "http://localhost:5174",
       "https://bouncecure-payment.onrender.com",
     ],
     credentials: true,
@@ -30,9 +32,11 @@ console.log("Loading user routes...");
 app.use("/api/users", userRoutes);
 console.log("User routes loaded.");
 
+app.use("/api/admin/chat", adminChatRoutes);
+app.use("/api/admin/users", require("./routes/users"));
 
 // Start Server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log("Backend running on http://localhost:" + PORT);
 });
